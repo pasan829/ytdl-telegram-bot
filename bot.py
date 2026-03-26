@@ -379,44 +379,64 @@ async def _do_download(update: Update, url: str, audio_only: bool):
 
 # ── Main ──────────────────────────────────────────────────────────────────
 
-def clear_existing_sessions():
-    """
-    Kill any existing getUpdates session before starting.
-    Calls deleteWebhook (clears webhook + drops pending) then waits
-    so the old polling instance has time to die gracefully.
-    """
-    import urllib.request, urllib.error, time
-
-    base = f"https://api.telegram.org/bot{BOT_TOKEN}"
-
-    # 1. Delete webhook — also forces Telegram to close any long-poll
+def tg_call(method: str, **params) -> dict:
+    """Simple synchronous Telegram API call."""
+    import urllib.request, urllib.parse, json as _json
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/{method}"
+    if params:
+        data = urllib.parse.urlencode(params).encode()
+        req  = urllib.request.Request(url, data=data)
+    else:
+        req = urllib.request.Request(url)
     try:
-        url = f"{base}/deleteWebhook?drop_pending_updates=true"
-        urllib.request.urlopen(url, timeout=10)
-        print("✅ Webhook cleared")
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return _json.loads(r.read())
     except Exception as e:
-        print(f"⚠️  deleteWebhook: {e}")
+        return {"ok": False, "description": str(e)}
 
-    # 2. Close any active getUpdates session via /close
-    try:
-        urllib.request.urlopen(f"{base}/close", timeout=10)
-        print("✅ Previous session closed")
-    except Exception as e:
-        # 'close' returns 429 if no session — that's fine
-        print(f"ℹ️  close: {e}")
 
-    # 3. Wait for Telegram to release the lock (official guidance: ≥ 10s)
-    print("⏳ Waiting 12s for previous instance to release polling lock...")
-    time.sleep(12)
-    print("🚀 Starting bot now...")
+def wait_for_lock(max_wait: int = 60):
+    """
+    Poll getUpdates with timeout=0 until we stop getting Conflict errors.
+    This means the previous instance has released the polling lock.
+    """
+    import time, urllib.request, urllib.parse, json as _json
+
+    print("⏳ Waiting for previous instance to release Telegram polling lock...")
+    deadline = time.time() + max_wait
+
+    while time.time() < deadline:
+        res = tg_call("getUpdates", timeout=0, limit=1)
+        desc = res.get("description", "")
+
+        if res.get("ok"):
+            print("✅ Lock is free — proceeding!")
+            return True
+
+        if "Conflict" in desc or "terminated by other" in desc:
+            print(f"   Still locked — retrying in 5s...")
+            time.sleep(5)
+        else:
+            # Some other error (e.g. bad token) — don't loop forever
+            print(f"⚠️  Unexpected response: {desc}")
+            break
+
+    print("⚠️  Proceeding anyway after timeout...")
+    return False
 
 
 def main():
     if not BOT_TOKEN:
         raise SystemExit("❌ BOT_TOKEN secret not set in GitHub!")
 
-    clear_existing_sessions()
+    # Step 1: delete any webhook so polling is allowed
+    r = tg_call("deleteWebhook", drop_pending_updates="true")
+    print(f"deleteWebhook → {r.get('description', 'ok')}")
 
+    # Step 2: wait until the previous polling instance has stopped
+    wait_for_lock(max_wait=90)
+
+    # Step 3: build and start the bot
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("id",    cmd_id))

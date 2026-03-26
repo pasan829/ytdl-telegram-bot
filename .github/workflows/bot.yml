@@ -1,10 +1,13 @@
 name: Video Downloader Bot
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '0 */5 * * *'
 
+# ── Duplicate run prevention ──────────────────────────────────────────────
 concurrency:
   group: bot-runner
   cancel-in-progress: true
@@ -12,7 +15,8 @@ concurrency:
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 350
+    timeout-minutes: 290
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -25,17 +29,13 @@ jobs:
       - name: Install FFmpeg
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y ffmpeg -qq
 
       - name: Install Python dependencies
-        run: pip install -r requirements.txt
-
-      - name: Kill any ghost bot processes
-        run: |
-          curl -s "https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/deleteWebhook?drop_pending_updates=true"
-          sleep 5
+        run: pip install -r requirements.txt -q
 
       - name: Run Bot
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID:   ${{ secrets.CHAT_ID }}
         run: python bot.py

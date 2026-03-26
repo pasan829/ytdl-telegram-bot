@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Downloader</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#07070f;--surface:#0f0f1a;--card:#13131f;--border:#232336;--accent:#ff3c5a;--purple:#a855f7;--tg:#229ED9;--text:#eeeeff;--muted:#5a5a78;--success:#22d3a0}
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;overflow-x:hidden}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(168,85,247,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(168,85,247,.03) 1px,transparent 1px);background-size:44px 44px;pointer-events:none;z-index:0}
+  .orb{position:fixed;border-radius:50%;filter:blur(100px);opacity:.18;pointer-events:none;z-index:0}
+  .orb1{width:500px;height:500px;background:var(--purple);top:-180px;right:-130px;animation:drift 9s ease-in-out infinite}
+  .orb2{width:380px;height:380px;background:var(--tg);bottom:-130px;left:-100px;animation:drift 12s ease-in-out infinite reverse}
+  @keyframes drift{0%,100%{transform:translate(0,0)}50%{transform:translate(-40px,50px)}}
+  .wrap{position:relative;z-index:1;max-width:680px;margin:0 auto;padding:44px 20px 60px}
+
+  /* Header */
+  .hd{text-align:center;margin-bottom:36px;animation:fadeDown .5s ease both}
+  .chip{display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,rgba(34,158,217,.12),rgba(168,85,247,.12));border:1px solid rgba(34,158,217,.3);border-radius:99px;padding:5px 16px;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--tg);margin-bottom:16px}
+  .chip-dot{width:6px;height:6px;border-radius:50%;background:var(--success);animation:blink 1.8s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+  h1{font-size:clamp(26px,5.5vw,46px);font-weight:800;background:linear-gradient(135deg,#fff 30%,var(--tg));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1;margin-bottom:8px}
+  .sub{color:var(--muted);font-size:13px}
+  .pills{display:flex;justify-content:center;flex-wrap:wrap;gap:7px;margin-top:18px}
+  .pill{display:flex;align-items:center;gap:5px;padding:5px 13px;border-radius:99px;font-size:11px;font-weight:700;border:1px solid;transition:transform .2s}
+  .pill:hover{transform:translateY(-2px)}
+  .pill svg{width:12px;height:12px;fill:currentColor}
+  .p-yt{color:#ff2222;border-color:rgba(255,34,34,.25);background:rgba(255,34,34,.07)}
+  .p-fb{color:#1877f2;border-color:rgba(24,119,242,.25);background:rgba(24,119,242,.07)}
+  .p-tw{color:#1da1f2;border-color:rgba(29,161,242,.25);background:rgba(29,161,242,.07)}
+  .p-ig{color:#e1306c;border-color:rgba(225,48,108,.25);background:rgba(225,48,108,.07)}
+  .p-tt{color:#ff0050;border-color:rgba(255,0,80,.25);background:rgba(255,0,80,.07)}
+
+  /* Card */
+  .card{background:var(--card);border:1px solid var(--border);border-radius:22px;padding:28px;box-shadow:0 24px 64px rgba(0,0,0,.5);margin-bottom:18px;animation:fadeUp .5s .1s ease both}
+  .lbl{font-size:10px;font-family:'Space Mono',monospace;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:9px;display:block}
+
+  .url-row{display:flex;gap:8px}
+  .url-input{flex:1;min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;color:var(--text);font-family:'Space Mono',monospace;font-size:12px;outline:none;transition:border-color .2s,box-shadow .2s}
+  .url-input:focus{border-color:var(--tg);box-shadow:0 0 0 3px rgba(34,158,217,.12)}
+  .url-input::placeholder{color:var(--muted)}
+  .paste-btn{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:0 14px;color:var(--muted);cursor:pointer;font-size:16px;transition:background .2s,color .2s;flex-shrink:0}
+  .paste-btn:hover{background:var(--border);color:var(--text)}
+
+  .detected{display:none;align-items:center;gap:7px;margin-top:8px;font-size:11px;font-family:'Space Mono',monospace;color:var(--muted)}
+  .detected.on{display:flex}
+  .dd{width:7px;height:7px;border-radius:50%;background:var(--success);animation:blink 1.6s infinite}
+
+  /* Buttons */
+  .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+  .go-btn{border:none;border-radius:12px;padding:14px;color:#fff;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .2s,box-shadow .2s;position:relative;overflow:hidden}
+  .go-btn:hover:not(:disabled){transform:translateY(-2px)}
+  .go-btn:disabled{opacity:.55;cursor:not-allowed}
+  .btn-video{background:linear-gradient(135deg,var(--accent),var(--purple))}
+  .btn-video:hover:not(:disabled){box-shadow:0 8px 24px rgba(255,60,90,.35)}
+  .btn-audio{background:linear-gradient(135deg,#22d3a0,#0891b2)}
+  .btn-audio:hover:not(:disabled){box-shadow:0 8px 24px rgba(34,211,160,.3)}
+
+  /* Spinner */
+  .spin{width:15px;height:15px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:rotate .65s linear infinite;display:none;flex-shrink:0}
+  .loading .spin{display:block}
+  .loading .btn-lbl{display:none}
+  @keyframes rotate{to{transform:rotate(360deg)}}
+
+  /* Status */
+  .status{display:none;align-items:center;gap:10px;padding:13px 16px;border-radius:12px;margin-top:14px;font-size:12px;line-height:1.6}
+  .status.on{display:flex;animation:fadeUp .3s ease both}
+  .status-loading{background:rgba(34,158,217,.08);border:1px solid rgba(34,158,217,.25);color:#93c5fd}
+  .status-error{background:rgba(255,60,90,.08);border:1px solid rgba(255,60,90,.25);color:#fca5a5}
+
+  /* Result */
+  .result{display:none;margin-top:16px;animation:fadeUp .35s ease both}
+  .result.on{display:block}
+
+  .v-strip{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+  .v-thumb{width:88px;height:58px;object-fit:cover;border-radius:8px;flex-shrink:0;background:var(--border)}
+  .v-thumb-ph{width:88px;height:58px;border-radius:8px;background:linear-gradient(135deg,var(--border),var(--card));display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
+  .v-info{flex:1;min-width:0}
+  .v-title{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+  .v-meta{font-size:11px;font-family:'Space Mono',monospace;color:var(--muted)}
+
+  .res-lbl{font-size:10px;font-family:'Space Mono',monospace;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+  .dl-grid{display:grid;gap:8px}
+  .dl-item{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:12px 15px;gap:10px;transition:border-color .2s,background .2s}
+  .dl-item:hover{border-color:var(--purple);background:rgba(168,85,247,.04)}
+  .dl-left{display:flex;align-items:center;gap:11px;min-width:0}
+  .dl-ico{font-size:20px;flex-shrink:0}
+  .dl-name{font-size:13px;font-weight:700}
+  .dl-note{font-size:11px;font-family:'Space Mono',monospace;color:var(--muted);margin-top:2px}
+  .dl-link{border:none;border-radius:9px;padding:9px 18px;color:#fff;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:transform .2s,box-shadow .2s;white-space:nowrap;text-decoration:none;flex-shrink:0}
+  .dl-link:hover{transform:scale(1.04)}
+  .dl-link.vid{background:linear-gradient(135deg,var(--accent),var(--purple))}
+  .dl-link.vid:hover{box-shadow:0 4px 16px rgba(255,60,90,.3)}
+  .dl-link.aud{background:linear-gradient(135deg,#22d3a0,#0891b2)}
+  .dl-link.aud:hover{box-shadow:0 4px 16px rgba(34,211,160,.3)}
+
+  /* Info grid */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px;animation:fadeUp .5s .25s ease both}
+  .gc{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:16px}
+  .gc-ico{font-size:20px;margin-bottom:7px}
+  .gc-ttl{font-size:12px;font-weight:700;margin-bottom:3px}
+  .gc-txt{font-size:11px;color:var(--muted);line-height:1.6}
+
+  .foot{text-align:center;color:var(--muted);font-family:'Space Mono',monospace;font-size:10px;margin-top:22px;line-height:2;animation:fadeUp .5s .3s ease both}
+
+  @keyframes fadeDown{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  @media(max-width:500px){.grid{grid-template-columns:1fr}.url-row{flex-direction:column}.btn-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="wrap">
+
+  <div class="hd">
+    <div class="chip"><span class="chip-dot"></span>Free · No Limits</div>
+    <h1>Video Downloader</h1>
+    <p class="sub">YouTube · Facebook · Instagram · Twitter/X · TikTok</p>
+    <div class="pills">
+      <div class="pill p-yt"><svg viewBox="0 0 24 24"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.7 15.5V8.5l6.3 3.5-6.3 3.5z"/></svg>YouTube</div>
+      <div class="pill p-fb"><svg viewBox="0 0 24 24"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.04V9.41c0-3.02 1.8-4.7 4.54-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.5c-1.5 0-1.96.93-1.96 1.89v2.26h3.32l-.53 3.5h-2.79V24C19.61 23.1 24 18.1 24 12.07z"/></svg>Facebook</div>
+      <div class="pill p-tw"><svg viewBox="0 0 24 24"><path d="M18.24 0h3.55l-7.76 8.87L23 24h-7.15l-5.6-7.32L3.9 24H.35l8.3-9.5L0 0h7.33l5.06 6.69L18.24 0zm-1.25 21.56h1.97L7.1 2.02H5z"/></svg>Twitter/X</div>
+      <div class="pill p-ig"><svg viewBox="0 0 24 24"><path d="M12 2.16c3.2 0 3.58.01 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85 0 3.2-.01 3.58-.07 4.85-.15 3.23-1.66 4.77-4.92 4.92-1.27.06-1.64.07-4.85.07-3.2 0-3.58-.01-4.85-.07-3.26-.15-4.77-1.7-4.92-4.92C2.17 15.58 2.16 15.2 2.16 12c0-3.2.01-3.58.07-4.85C2.38 3.86 3.9 2.31 7.15 2.23 8.42 2.17 8.8 2.16 12 2.16zM12 0C8.74 0 8.33.01 7.05.07 2.7.27.27 2.7.07 7.05.01 8.33 0 8.74 0 12c0 3.26.01 3.67.07 4.95.2 4.36 2.62 6.78 6.98 6.98C8.33 23.99 8.74 24 12 24c3.26 0 3.67-.01 4.95-.07 4.35-.2 6.78-2.62 6.98-6.98.06-1.28.07-1.69.07-4.95 0-3.26-.01-3.67-.07-4.95-.2-4.35-2.62-6.78-6.98-6.98C15.67.01 15.26 0 12 0zm0 5.84a6.16 6.16 0 1 0 0 12.32A6.16 6.16 0 0 0 12 5.84zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.4-11.85a1.44 1.44 0 1 0 0 2.88 1.44 1.44 0 0 0 0-2.88z"/></svg>Instagram</div>
+      <div class="pill p-tt"><svg viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.77 0 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 0 0-6.13 6.33 6.34 6.34 0 0 0 12.67 0V8.69a8.18 8.18 0 0 0 4.79 1.52V6.75a4.85 4.85 0 0 1-1.02-.06z"/></svg>TikTok</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <label class="lbl" for="urlBox">Video URL paste කරන්න</label>
+    <div class="url-row">
+      <input type="url" id="urlBox" class="url-input"
+        placeholder="https://youtube.com/watch?v=..."
+        autocomplete="off" spellcheck="false">
+      <button class="paste-btn" onclick="doPaste()" title="Paste">📋</button>
+    </div>
+    <div class="detected" id="detEl">
+      <div class="dd"></div>
+      <span id="detTxt"></span>
+    </div>
+
+    <div class="btn-row">
+      <button class="go-btn btn-video" id="btnVideo" onclick="fetchLinks('video')">
+        <div class="spin"></div>
+        <span class="btn-lbl">🎬 Video Download</span>
+      </button>
+      <button class="go-btn btn-audio" id="btnAudio" onclick="fetchLinks('audio')">
+        <div class="spin"></div>
+        <span class="btn-lbl">🎵 Audio (MP3)</span>
+      </button>
+    </div>
+
+    <!-- Status -->
+    <div class="status status-loading" id="statusLoading">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:rotate .8s linear infinite;flex-shrink:0"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>
+      <span id="statusTxt">Download links ලබාගනිමින්...</span>
+    </div>
+    <div class="status status-error" id="statusError">
+      <span>⚠️</span><span id="errorTxt"></span>
+    </div>
+
+    <!-- Result -->
+    <div class="result" id="result">
+      <div id="vStrip"></div>
+      <div class="res-lbl">Quality select කරන්න</div>
+      <div class="dl-grid" id="dlGrid"></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="gc"><div class="gc-ico">⚡</div><div class="gc-ttl">On-Site Download</div><div class="gc-txt">Site ගෙන් නොගොස් directly download links ලැබෙනවා.</div></div>
+    <div class="gc"><div class="gc-ico">🎵</div><div class="gc-ttl">Video + MP3</div><div class="gc-txt">1080p video හෝ MP3 audio — ඔයාගෙ choice!</div></div>
+    <div class="gc"><div class="gc-ico">🚀</div><div class="gc-ttl">No Limits</div><div class="gc-txt">GitHub Actions + Telegram — completely free, unlimited.</div></div>
+    <div class="gc"><div class="gc-ico">🔒</div><div class="gc-ttl">Private</div><div class="gc-txt">ඔයාගෙ bot, ඔයාගෙ server. Data store නෑ.</div></div>
+  </div>
+
+  <div class="foot">
+    Powered by Telegram Bot + yt-dlp · For personal use only · Respect copyright
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// CONFIG — මේ values ඔයාගෙ details ගෙ replace කරන්න
+// ════════════════════════════════════════════════════════════════
+const BOT_TOKEN = "8607089749:AAFTIDa58AOh3VYcwT9umwEJHeo0-tmTZmw";   // BotFather ගෙ ලැබිච්ච token
+const CHAT_ID   = "7680361714";     // Telegram ගා /id command ගෙ ලැබෙනවා
+// ════════════════════════════════════════════════════════════════
+
+const TG_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
+
+function detect(url) {
+  if (/youtube\.com|youtu\.be/i.test(url))          return "YouTube";
+  if (/facebook\.com|fb\.watch/i.test(url))          return "Facebook";
+  if (/twitter\.com|x\.com/i.test(url))             return "Twitter / X";
+  if (/instagram\.com/i.test(url))                  return "Instagram";
+  if (/tiktok\.com/i.test(url))                     return "TikTok";
+  return null;
+}
+
+const urlBox = document.getElementById("urlBox");
+urlBox.addEventListener("input", () => {
+  const p = detect(urlBox.value.trim());
+  const el = document.getElementById("detEl");
+  if (p && urlBox.value.length > 10) {
+    document.getElementById("detTxt").textContent = "Detected: " + p;
+    el.classList.add("on");
+  } else { el.classList.remove("on"); }
+  hideAll();
+});
+urlBox.addEventListener("keydown", e => { if (e.key === "Enter") fetchLinks("video"); });
+
+async function doPaste() {
+  try {
+    urlBox.value = await navigator.clipboard.readText();
+    urlBox.dispatchEvent(new Event("input"));
+  } catch { urlBox.focus(); }
+}
+
+function hideAll() {
+  document.getElementById("statusLoading").classList.remove("on");
+  document.getElementById("statusError").classList.remove("on");
+  document.getElementById("result").classList.remove("on");
+}
+
+function setLoading(on) {
+  document.getElementById("btnVideo").disabled = on;
+  document.getElementById("btnAudio").disabled = on;
+  if (on) {
+    document.getElementById("btnVideo").classList.add("loading");
+    document.getElementById("btnAudio").classList.add("loading");
+  } else {
+    document.getElementById("btnVideo").classList.remove("loading");
+    document.getElementById("btnAudio").classList.remove("loading");
+  }
+}
+
+function showError(msg) {
+  hideAll();
+  document.getElementById("errorTxt").textContent = msg;
+  document.getElementById("statusError").classList.add("on");
+}
+
+function showStatus(msg) {
+  document.getElementById("statusLoading").classList.add("on");
+  document.getElementById("statusTxt").textContent = msg;
+}
+
+function fmtSize(b) {
+  if (!b) return "";
+  if (b < 1048576) return ` · ${(b/1024).toFixed(0)} KB`;
+  return ` · ${(b/1048576).toFixed(1)} MB`;
+}
+
+function fmtDuration(s) {
+  if (!s) return "";
+  const m = Math.floor(s/60), sec = s%60;
+  return ` · ${m}:${String(sec).padStart(2,"0")}`;
+}
+
+// Send message to bot
+async function sendMessage(text) {
+  const res = await fetch(`${TG_API}/sendMessage`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({chat_id: CHAT_ID, text})
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error("Failed to send message to bot");
+  return data.result.message_id;
+}
+
+// Poll for bot reply after a specific message ID
+async function pollForReply(afterMsgId, timeoutMs = 30000) {
+  const start = Date.now();
+  let lastUpdateId = 0;
+
+  while (Date.now() - start < timeoutMs) {
+    await new Promise(r => setTimeout(r, 1500));
+
+    const res = await fetch(`${TG_API}/getUpdates?offset=${lastUpdateId + 1}&limit=10&timeout=2`);
+    const data = await res.json();
+    if (!data.ok) continue;
+
+    for (const update of data.result) {
+      lastUpdateId = update.update_id;
+      const msg = update.message;
+      if (!msg) continue;
+      if (String(msg.chat.id) !== String(CHAT_ID)) continue;
+
+      const txt = msg.text || "";
+      if (txt.startsWith("APIRESULT:")) {
+        try {
+          return JSON.parse(txt.slice(10));
+        } catch { continue; }
+      }
+    }
+  }
+  throw new Error("Timeout — bot reply ලැබුණේ නෑ. Retry කරන්න.");
+}
+
+async function fetchLinks(type) {
+  const url = urlBox.value.trim();
+  if (!url || !/^https?:\/\//i.test(url)) {
+    urlBox.style.borderColor = "var(--accent)";
+    urlBox.style.boxShadow = "0 0 0 3px rgba(255,60,90,.2)";
+    setTimeout(() => { urlBox.style.borderColor = ""; urlBox.style.boxShadow = ""; }, 1500);
+    return;
+  }
+
+  hideAll();
+  setLoading(true);
+  showStatus("Bot ගෙ download links ලබාගනිමින්... (10-20s)");
+
+  try {
+    // Unique request ID
+    const reqId = Date.now().toString();
+    const prefix = type === "audio" ? "APIGET_AUDIO" : "APIGET";
+    const requestText = `${prefix}:${reqId}:${url}`;
+
+    // Get current last update ID before sending
+    const beforeRes = await fetch(`${TG_API}/getUpdates?limit=100&timeout=0`);
+    const beforeData = await beforeRes.json();
+    const lastId = beforeData.result?.length
+      ? beforeData.result[beforeData.result.length - 1].update_id
+      : 0;
+
+    // Send to bot
+    await sendMessage(requestText);
+    showStatus("Bot processing... download links ගෙනෙමින් 🔄");
+
+    // Poll for reply
+    const result = await pollReplyAfter(lastId, reqId, 35000);
+
+    setLoading(false);
+    document.getElementById("statusLoading").classList.remove("on");
+
+    if (!result.ok) {
+      showError(result.error || "Download failed. URL check කරලා retry කරන්න.");
+      return;
+    }
+
+    buildResult(result, url);
+
+  } catch (err) {
+    setLoading(false);
+    showError(err.message || "Connection error. Retry කරන්න.");
+  }
+}
+
+async function pollReplyAfter(afterUpdateId, reqId, timeoutMs) {
+  const start = Date.now();
+  let offset = afterUpdateId + 1;
+
+  while (Date.now() - start < timeoutMs) {
+    await new Promise(r => setTimeout(r, 2000));
+
+    try {
+      const res = await fetch(`${TG_API}/getUpdates?offset=${offset}&limit=20&timeout=2`);
+      const data = await res.json();
+      if (!data.ok) continue;
+
+      for (const update of data.result) {
+        offset = update.update_id + 1;
+        const msg = update.message;
+        if (!msg) continue;
+        if (String(msg.chat.id) !== String(CHAT_ID)) continue;
+
+        const txt = msg.text || "";
+        if (txt.startsWith("APIRESULT:")) {
+          try {
+            const parsed = JSON.parse(txt.slice(10));
+            if (parsed.req_id === reqId || !parsed.req_id) {
+              return parsed;
+            }
+          } catch { continue; }
+        }
+      }
+    } catch { /* continue polling */ }
+  }
+  throw new Error("Timeout — 35s ඇතුළත reply ආවේ නෑ. Retry කරන්න.");
+}
+
+function buildResult(data, originalUrl) {
+  const strip = document.getElementById("vStrip");
+  const thumbHtml = data.thumbnail
+    ? `<img class="v-thumb" src="${esc(data.thumbnail)}" alt="" onerror="this.style.display='none'">`
+    : `<div class="v-thumb-ph">🎬</div>`;
+
+  strip.innerHTML = `
+    <div class="v-strip">
+      ${thumbHtml}
+      <div class="v-info">
+        <div class="v-title">${esc(data.title || "Video")}</div>
+        <div class="v-meta">${esc(data.platform || "")}${fmtDuration(data.duration)}${data.uploader ? " · " + esc(data.uploader) : ""}</div>
+      </div>
+    </div>`;
+
+  const grid = document.getElementById("dlGrid");
+  grid.innerHTML = "";
+
+  if (!data.options || data.options.length === 0) {
+    showError("Download formats හොයාගන්න බැරිවුනා.");
+    return;
+  }
+
+  data.options.forEach(opt => {
+    const isAud = opt.type === "audio";
+    const item = document.createElement("div");
+    item.className = "dl-item";
+    item.innerHTML = `
+      <div class="dl-left">
+        <div class="dl-ico">${isAud ? "🎵" : "🎬"}</div>
+        <div>
+          <div class="dl-name">${esc(opt.label)}</div>
+          <div class="dl-note">${esc((opt.ext || "").toUpperCase())}${fmtSize(opt.size)}</div>
+        </div>
+      </div>
+      <a class="dl-link ${isAud ? "aud" : "vid"}"
+         href="${esc(opt.url)}"
+         download="${esc(data.title || "video")}.${esc(opt.ext || "mp4")}"
+         target="_blank" rel="noopener">
+        ⬇ ${isAud ? "MP3" : "Download"}
+      </a>`;
+    grid.appendChild(item);
+  });
+
+  document.getElementById("result").classList.add("on");
+  document.getElementById("result").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+function esc(s) {
+  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+</script>
+</body>
+</html>

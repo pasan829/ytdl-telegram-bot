@@ -7,10 +7,10 @@ on:
   schedule:
     - cron: '0 */5 * * *'
 
-# ── Duplicate run prevention ──────────────────────────────────────────────
+# New run waits — does NOT cancel old run mid-flight
 concurrency:
   group: bot-runner
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   run-bot:
@@ -27,9 +27,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install FFmpeg
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y ffmpeg -qq
+        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg -qq
 
       - name: Install Python dependencies
         run: pip install -r requirements.txt -q

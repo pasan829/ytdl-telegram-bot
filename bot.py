@@ -379,9 +379,43 @@ async def _do_download(update: Update, url: str, audio_only: bool):
 
 # ── Main ──────────────────────────────────────────────────────────────────
 
+def clear_existing_sessions():
+    """
+    Kill any existing getUpdates session before starting.
+    Calls deleteWebhook (clears webhook + drops pending) then waits
+    so the old polling instance has time to die gracefully.
+    """
+    import urllib.request, urllib.error, time
+
+    base = f"https://api.telegram.org/bot{BOT_TOKEN}"
+
+    # 1. Delete webhook — also forces Telegram to close any long-poll
+    try:
+        url = f"{base}/deleteWebhook?drop_pending_updates=true"
+        urllib.request.urlopen(url, timeout=10)
+        print("✅ Webhook cleared")
+    except Exception as e:
+        print(f"⚠️  deleteWebhook: {e}")
+
+    # 2. Close any active getUpdates session via /close
+    try:
+        urllib.request.urlopen(f"{base}/close", timeout=10)
+        print("✅ Previous session closed")
+    except Exception as e:
+        # 'close' returns 429 if no session — that's fine
+        print(f"ℹ️  close: {e}")
+
+    # 3. Wait for Telegram to release the lock (official guidance: ≥ 10s)
+    print("⏳ Waiting 12s for previous instance to release polling lock...")
+    time.sleep(12)
+    print("🚀 Starting bot now...")
+
+
 def main():
     if not BOT_TOKEN:
         raise SystemExit("❌ BOT_TOKEN secret not set in GitHub!")
+
+    clear_existing_sessions()
 
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
@@ -389,8 +423,11 @@ def main():
     app.add_handler(CommandHandler("audio", cmd_audio))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
-    print("🤖 Bot started — polling...")
-    app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+    print("🤖 Bot polling started!")
+    app.run_polling(
+        allowed_updates=Update.ALL_TYPES,
+        drop_pending_updates=True,
+    )
 
 if __name__ == "__main__":
     main()
